@@ -11,8 +11,8 @@ GITHUB_TOKEN=""
 TARGET_APP="com.mbcfgkmhkdjx.cunpcbaavarqntr"
 FILES=("pgtools.apk" "via.apk" "pgtoolsfly.apk" "nest.gpx" "Stardustconfig.txt")
 
-# CRITICAL FIX: Use /data/local/tmp/ so root can read the files
-WORK_DIR="/data/local/tmp/cloud_setup"
+# Download to Termux's private home folder (Termux CAN write here)
+WORK_DIR="$HOME/cloud_setup"
 mkdir -p "$WORK_DIR"
 cd "$WORK_DIR" || exit
 
@@ -49,20 +49,28 @@ echo "[*] Requesting root and setting SELinux to Permissive..."
 su -c "setenforce 0" || { echo "Root failed! Ensure Magisk is installed."; exit 1; }
 
 # ==========================================
-# 4. INSTALL APPS
+# 4. MOVE FILES TO SYSTEM-ACCESSIBLE LOCATION
+# ==========================================
+echo "[*] Moving files to /data/local/tmp/cloud_setup..."
+su -c "mkdir -p /data/local/tmp/cloud_setup"
+su -c "cp $WORK_DIR/* /data/local/tmp/cloud_setup/"
+su -c "chmod -R 755 /data/local/tmp/cloud_setup"
+
+# ==========================================
+# 5. INSTALL APPS
 # ==========================================
 echo "[*] Installing APKs..."
 for APK in "pgtools.apk" "via.apk" "pgtoolsfly.apk"; do
-    if [ -f "$WORK_DIR/$APK" ]; then
+    if su -c "[ -f /data/local/tmp/cloud_setup/$APK ]"; then
         echo "    -> Installing $APK..."
-        su -c "pm install -r $WORK_DIR/$APK"
+        su -c "pm install -r /data/local/tmp/cloud_setup/$APK"
     else
-        echo "    [!] Warning: $APK not found!"
+        echo "    [!] Warning: $APK not found in system temp folder!"
     fi
 done
 
 # ==========================================
-# 5. GRANT SPECIFIC PERMISSIONS
+# 6. GRANT SPECIFIC PERMISSIONS
 # ==========================================
 echo "[*] Granting permissions to $TARGET_APP..."
 if su -c "pm list packages | grep -q $TARGET_APP"; then
@@ -89,7 +97,7 @@ else
 fi
 
 # ==========================================
-# 6. GRANT ROOT TO PG TOOLS (MAGISK)
+# 7. GRANT ROOT TO PG TOOLS (MAGISK)
 # ==========================================
 echo "[*] Granting root to PGTools..."
 PGTOOLS_PKG=$(su -c "pm list packages | grep -i 'pgtools' | cut -d ':' -f 2 | head -n 1")
