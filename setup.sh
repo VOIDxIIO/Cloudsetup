@@ -44,10 +44,17 @@ for FILE in "${FILES[@]}"; do
 done
 
 # ==========================================
-# 4. ROOT & SELINUX SETUP
+# 4. ROOT & SELINUX SETUP (FIXED)
 # ==========================================
 echo "[*] Requesting root and setting SELinux to Permissive..."
-su -c "setenforce 0" || { echo "Root failed! Ensure Magisk is installed."; exit 1; }
+if su -c "id" >/dev/null 2>&1; then
+    echo "    -> Root access confirmed."
+    # Ignore the error if SELinux is already disabled
+    su -c "setenforce 0" >/dev/null 2>&1 || true
+else
+    echo "    [!] Root failed! Please open Magisk and grant root to Termux."
+    exit 1
+fi
 
 # ==========================================
 # 5. MOVE APKS TO SYSTEM-ACCESSIBLE LOCATION
@@ -99,7 +106,7 @@ if su -c "pm list packages | grep -q $TARGET_APP"; then
     
     echo "[+] Permissions granted successfully."
 else
-    echo "[!] Error: $TARGET_APP is not installed."
+    echo "[!] Error: $TARGET_APP is not installed. Skipping permissions."
 fi
 
 # ==========================================
