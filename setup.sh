@@ -11,9 +11,9 @@ GITHUB_TOKEN=""
 TARGET_APP="com.mbcfgkmhkdjx.cunpcbaavarqntr"
 FILES=("pgtools.apk" "via.apk" "pgtoolsfly.apk" "nest.gpx" "Stardustconfig.txt")
 
-# 1. DOWNLOAD TO TERMUX HOME (Termux CAN write here)
+# 1. DOWNLOAD TO TERMUX HOME
 WORK_DIR="$HOME/cloud_setup"
-rm -rf "$WORK_DIR" # Auto-clear old cache
+rm -rf "$WORK_DIR" 
 mkdir -p "$WORK_DIR"
 cd "$WORK_DIR" || exit
 
@@ -34,7 +34,6 @@ done
 # ==========================================
 echo "[*] Downloading setup files..."
 for FILE in "${FILES[@]}"; do
-    # Adding ?t= to bust GitHub cache
     URL="https://raw.githubusercontent.com/$GITHUB_USER/$GITHUB_REPO/$GITHUB_BRANCH/$FILE?t=$(date +%s)"
     echo "    -> Downloading $FILE..."
     if [ -n "$GITHUB_TOKEN" ]; then
@@ -51,29 +50,36 @@ echo "[*] Requesting root and setting SELinux to Permissive..."
 su -c "setenforce 0" || { echo "Root failed! Ensure Magisk is installed."; exit 1; }
 
 # ==========================================
-# 5. MOVE FILES TO SYSTEM-ACCESSIBLE LOCATION USING ROOT
+# 5. MOVE APKS TO SYSTEM-ACCESSIBLE LOCATION
 # ==========================================
-echo "[*] Moving files to /data/local/tmp/cloud_setup using root..."
-su -c "rm -rf /data/local/tmp/cloud_setup" # Clear old system cache
+echo "[*] Moving APKs to /data/local/tmp/cloud_setup..."
+su -c "rm -rf /data/local/tmp/cloud_setup"
 su -c "mkdir -p /data/local/tmp/cloud_setup"
-su -c "cp $WORK_DIR/* /data/local/tmp/cloud_setup/"
+su -c "cp $WORK_DIR/*.apk /data/local/tmp/cloud_setup/"
 su -c "chmod -R 755 /data/local/tmp/cloud_setup"
 
 # ==========================================
-# 6. INSTALL APPS
+# 6. COPY CONFIG FILES TO PUBLIC DOWNLOADS FOLDER
+# ==========================================
+echo "[*] Copying config files to /sdcard/Download/CloudSetup/..."
+su -c "mkdir -p /sdcard/Download/CloudSetup"
+su -c "cp $WORK_DIR/nest.gpx /sdcard/Download/CloudSetup/"
+su -c "cp $WORK_DIR/Stardustconfig.txt /sdcard/Download/CloudSetup/"
+echo "    -> Files saved to Internal Storage/Download/CloudSetup/"
+
+# ==========================================
+# 7. INSTALL APPS
 # ==========================================
 echo "[*] Installing APKs..."
 for APK in "pgtools.apk" "via.apk" "pgtoolsfly.apk"; do
     if su -c "[ -f /data/local/tmp/cloud_setup/$APK ]"; then
         echo "    -> Installing $APK..."
         su -c "pm install -r /data/local/tmp/cloud_setup/$APK"
-    else
-        echo "    [!] Warning: $APK not found in system temp folder!"
     fi
 done
 
 # ==========================================
-# 7. GRANT SPECIFIC PERMISSIONS
+# 8. GRANT SPECIFIC PERMISSIONS
 # ==========================================
 echo "[*] Granting permissions to $TARGET_APP..."
 if su -c "pm list packages | grep -q $TARGET_APP"; then
@@ -97,7 +103,7 @@ else
 fi
 
 # ==========================================
-# 8. GRANT ROOT TO PG TOOLS (MAGISK)
+# 9. GRANT ROOT TO PG TOOLS (MAGISK)
 # ==========================================
 echo "[*] Granting root to PGTools..."
 PGTOOLS_PKG=$(su -c "pm list packages | grep -i 'pgtools' | cut -d ':' -f 2 | head -n 1")
